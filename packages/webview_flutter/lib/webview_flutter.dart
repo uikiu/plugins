@@ -19,13 +19,20 @@ typedef void WebViewCreatedCallback(WebViewController controller);
 /// Describes the state of JavaScript support in a given web view.
 enum JavascriptMode {
   /// JavaScript execution is disabled.
+  /// 不可用
   disabled,
 
   /// JavaScript execution is not restricted.
+  /// 不受限制
   unrestricted,
 }
 
 /// A message that was sent by JavaScript code running in a [WebView].
+/// ----------------------------------------------------------------------------
+/// Javascript在webView中发送的消息封装成对象[JavascriptMessage]
+/// 本写法含义：http://www.peachpit.com/articles/article.aspx?p=2468332&seqNum=5
+/// 这种写法保证，相同的message生成的对象唯一性。当然前提是是用const构造。
+/// 如果是使用new构造的话还是会新建对象。
 class JavascriptMessage {
   /// Constructs a JavaScript message object.
   ///
@@ -40,13 +47,17 @@ class JavascriptMessage {
 typedef void JavascriptMessageHandler(JavascriptMessage message);
 
 /// Information about a navigation action that is about to be executed.
+/// 
+/// 有关即将执行的导航操作的信息。
 class NavigationRequest {
   NavigationRequest._({this.url, this.isForMainFrame});
 
   /// The URL that will be loaded if the navigation is executed.
+  /// 要load的url
   final String url;
 
   /// Whether the navigation request is to be loaded as the main frame.
+  ///是否将导航请求作为主框架加载
   final bool isForMainFrame;
 
   @override
@@ -56,11 +67,17 @@ class NavigationRequest {
 }
 
 /// A decision on how to handle a navigation request.
+/// ------------------------------------------------------------------------
+/// 
+/// 如何处理导航请求：允许 or 阻止
+/// decision:决断、决策
 enum NavigationDecision {
   /// Prevent the navigation from taking place.
+  /// 阻止进行导航
   prevent,
 
   /// Allow the navigation to take place.
+  /// 允许进行导航
   navigate,
 }
 
@@ -70,13 +87,22 @@ enum NavigationDecision {
 /// `navigation` should be handled.
 ///
 /// See also: [WebView.navigationDelegate].
+/// ----------------------------------------------------------------------------
+/// 决定如何处理导航请求:
+///       1.NavigationRequest 是导航请求信息：url and 是否将导航请求作为主框架加载
+///       2.NavigationDecision 处理导航请求的结果：阻止 or 允许
+///
 typedef FutureOr<NavigationDecision> NavigationDelegate(
     NavigationRequest navigation);
 
 /// Signature for when a [WebView] has started loading a page.
+/// 页面开始加载
+/// url：开始加载的页面url
 typedef void PageStartedCallback(String url);
 
 /// Signature for when a [WebView] has finished loading a page.
+/// 页面加载结束
+/// url：结束加载页面的url
 typedef void PageFinishedCallback(String url);
 
 /// Specifies possible restrictions on automatic media playback.
@@ -101,6 +127,9 @@ enum AutoMediaPlaybackPolicy {
 final RegExp _validChannelNames = RegExp('^[a-zA-Z_][a-zA-Z0-9_]*\$');
 
 /// A named channel for receiving messaged from JavaScript code running inside a web view.
+/// 从js端接收到消息:名称为[JavascriptChannel.name] 消息为[JavascriptMessage.message]
+///
+/// 注意：是javascriptChannel中接收JavascriptMessage
 class JavascriptChannel {
   /// Constructs a Javascript channel.
   ///
@@ -137,6 +166,10 @@ class WebView extends StatefulWidget {
   /// `onWebViewCreated` callback once the web view is created.
   ///
   /// The `javascriptMode` and `autoMediaPlaybackPolicy` parameters must not be null.
+  ///
+  /// --------------------------------------------------------------------------
+  /// webView的创建是一个异步过程，当创建完毕后会通过onWebViewCreated回调。
+  /// 构造函数虽然是命名参数函数，但是javascriptMode和autoMediaPlaybackPolicy是必选项
   const WebView({
     Key key,
     this.onWebViewCreated,
@@ -190,6 +223,7 @@ class WebView extends StatefulWidget {
   }
 
   /// If not null invoked once the web view is created.
+  /// 用于初始化WebViewController的回调
   final WebViewCreatedCallback onWebViewCreated;
 
   /// Which gestures should be consumed by the web view.
@@ -236,6 +270,20 @@ class WebView extends StatefulWidget {
   /// channels in the list.
   ///
   /// A null value is equivalent to an empty set.
+  /// --------------------------------------------------------------------------
+  ///
+  /// JavascriptChannel 可以使 JavaScript代码运行在webView中
+  /// 集合中的每一个JavascriptChannel对应一个可运行javaScript的window窗口，这个window窗口名称= [JavascriptChannel.name]
+  /// 集合中每一个[JavascriptChannel.name]都是唯一的,即：保证[JavascriptChannel.name]的唯一性
+  ///
+  /// JavascriptChannel 创建：
+  /// ```dart
+  /// JavascriptChannel (
+  ///     name:'Print',//保证唯一性
+  ///     onMessageReceived:(JavascriptMessage message){//todo handle JavascriptMessage}
+  /// );
+  /// ```
+  ///
   final Set<JavascriptChannel> javascriptChannels;
 
   /// A delegate function that decides how to handle navigation actions.
@@ -260,9 +308,20 @@ class WebView extends StatefulWidget {
   ///     * When a navigationDelegate is set pages with frames are not properly handled by the
   ///       webview, and frames will be opened in the main frame.
   ///     * When a navigationDelegate is set HTTP requests do not include the HTTP referer header.
+  /// --------------------------------------------------------------------------
+  /// 一个委托函数，用于决定如何处理导航动作。
+  /// 根据导航请求信息NavigationRequest决定导航做出什么样的决定NavigationDecision（阻止加载 or 允许加载）
+  ///
+  /// 
+  /// 导航的初始化就是webView load link url，所以这里导航的含义应该就是：通过webView load url
+  /// 当url被导航时会调用此委托，此委托会决如何进行导航。
+  /// 
+  /// 在android系统上要注意：
+  ///   1. 可以拦截针对主机的导航操作，
   final NavigationDelegate navigationDelegate;
 
   /// Invoked when a page starts loading.
+  /// 页面开始加载
   final PageStartedCallback onPageStarted;
 
   /// Invoked when a page has finished loading.
@@ -296,6 +355,8 @@ class WebView extends StatefulWidget {
   /// This only works on iOS.
   ///
   /// By default `gestureNavigationEnabled` is false.
+  /// 
+  /// ios设备上水平滑动手势是否会触发后退列表导航，默认为false
   final bool gestureNavigationEnabled;
 
   ///
@@ -497,7 +558,12 @@ class _PlatformCallbacksHandler implements WebViewPlatformCallbacksHandler {
 ///
 /// A [WebViewController] instance can be obtained by setting the [WebView.onWebViewCreated]
 /// callback for a [WebView] widget.
+///
+/// ----------------------------------------------------------------------------
+/// WebViewController用于控制webView，WebViewController是一个构造函数私有化
 class WebViewController {
+
+  //注意，本构造函数为典型的构造函数私有化。通常构造私有化后，需要其他方式构造对象
   WebViewController._(
     this._widget,
     this._webViewPlatformController,
@@ -640,6 +706,9 @@ class WebViewController {
   /// When evaluating Javascript in a [WebView], it is best practice to wait for
   /// the [WebView.onPageFinished] callback. This guarantees all the Javascript
   /// embedded in the main frame HTML has been loaded.
+  /// 
+  /// ---------------------------------------------------------------------------------------------------
+  /// 通过本方法实现调用javascript
   Future<String> evaluateJavascript(String javascriptString) {
     if (_settings.javascriptMode == JavascriptMode.disabled) {
       return Future<String>.error(FlutterError(

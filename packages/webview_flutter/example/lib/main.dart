@@ -4,6 +4,11 @@
 
 // ignore_for_file: public_member_api_docs
 
+/*
+[Flutter WebView加载及加载进度条](https://blog.csdn.net/worship_Kill/article/details/102919007)
+
+ */
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -19,8 +24,8 @@ const String kNavigationExamplePage = '''
 The navigation delegate is set to block navigation to the youtube website.
 </p>
 <ul>
-<ul><a href="https://www.youtube.com/">https://www.youtube.com/</a></ul>
-<ul><a href="https://www.google.com/">https://www.google.com/</a></ul>
+<ul><a href="https://flutterchina.club/">https://flutterchina.club/</a></ul>
+<ul><a href="https://www.sina.com.cn/">https://www.sina.com.cn/</a></ul>
 </ul>
 </body>
 </html>
@@ -32,6 +37,8 @@ class WebViewExample extends StatefulWidget {
 }
 
 class _WebViewExampleState extends State<WebViewExample> {
+
+  //webView的控制器是webViewController。webViewController构造函数已经私有化，所以需要其他方式初始化。
   final Completer<WebViewController> _controller =
       Completer<WebViewController>();
 
@@ -50,30 +57,43 @@ class _WebViewExampleState extends State<WebViewExample> {
       // to allow calling Scaffold.of(context) so we can show a snackbar.
       body: Builder(builder: (BuildContext context) {
         return WebView(
-          initialUrl: 'https://flutter.dev',
+//          initialUrl: 'https://flutter.dev',
+          //初始url
+          initialUrl: 'https://flutterchina.club/',
+
+          //js执行不受限制
           javascriptMode: JavascriptMode.unrestricted,
+
+          //webView创建完毕，初始化WebViewController
           onWebViewCreated: (WebViewController webViewController) {
-            _controller.complete(webViewController);
+            _controller.complete(webViewController);// Something calls this when the value is ready.
           },
-          // TODO(iskakaushik): Remove this when collection literals makes it to stable.
-          // ignore: prefer_collection_literals
+          //所有支持的js通道
           javascriptChannels: <JavascriptChannel>[
             _toasterJavascriptChannel(context),
           ].toSet(),
+
+          //导航委托：根据NavigationRequest决定NavigationDecision
           navigationDelegate: (NavigationRequest request) {
-            if (request.url.startsWith('https://www.youtube.com/')) {
+            if (request.url.startsWith('https://www.sina.com.cn/')) {
               print('blocking navigation to $request}');
               return NavigationDecision.prevent;
             }
             print('allowing navigation to $request');
             return NavigationDecision.navigate;
           },
+
+          //页面开始加载
           onPageStarted: (String url) {
             print('Page started loading: $url');
           },
+
+          //页面加载结束
           onPageFinished: (String url) {
             print('Page finished loading: $url');
           },
+
+          //ios设备：水平滑动手势是否会触发后退列表导航，默认为false
           gestureNavigationEnabled: true,
         );
       }),
@@ -81,10 +101,15 @@ class _WebViewExampleState extends State<WebViewExample> {
     );
   }
 
+  /**
+   * 一条javascriptChannel,名称toaster
+   * 用于通过snackBar展现：flutter接收到的js内容
+   */
   JavascriptChannel _toasterJavascriptChannel(BuildContext context) {
     return JavascriptChannel(
         name: 'Toaster',
         onMessageReceived: (JavascriptMessage message) {
+          //通过snackBar显示flutter接收到的js内容
           Scaffold.of(context).showSnackBar(
             SnackBar(content: Text(message.message)),
           );
@@ -93,7 +118,7 @@ class _WebViewExampleState extends State<WebViewExample> {
 
   Widget favoriteButton() {
     return FutureBuilder<WebViewController>(
-        future: _controller.future,
+        future: _controller.future,// Send future object back to client.
         builder: (BuildContext context,
             AsyncSnapshot<WebViewController> controller) {
           if (controller.hasData) {
@@ -122,6 +147,9 @@ enum MenuOptions {
   navigationDelegate,
 }
 
+/**
+ * WebViewController与自定义的Menu绑定
+ */
 class SampleMenu extends StatelessWidget {
   SampleMenu(this.controller);
 
@@ -274,6 +302,9 @@ class SampleMenu extends StatelessWidget {
   }
 }
 
+/**
+ * WebViewController 与 自定义的NavigationControls绑定
+ */
 class NavigationControls extends StatelessWidget {
   const NavigationControls(this._webViewControllerFuture)
       : assert(_webViewControllerFuture != null);
@@ -288,6 +319,7 @@ class NavigationControls extends StatelessWidget {
           (BuildContext context, AsyncSnapshot<WebViewController> snapshot) {
         final bool webViewReady =
             snapshot.connectionState == ConnectionState.done;
+        //从snapshot中读取WebViewController
         final WebViewController controller = snapshot.data;
         return Row(
           children: <Widget>[
